@@ -4,6 +4,4 @@
     <br>
 <p>
 
-# pytree
-
 Implementation of tree-structured neural networks in PyTorch.

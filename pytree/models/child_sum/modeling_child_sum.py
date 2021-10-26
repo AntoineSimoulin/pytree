@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from transformers import BertModel
+from pytree.utils import GloveTokenizer
 
 
 class TreeLSTM(nn.Module):
@@ -388,6 +389,7 @@ class ChildSumTreeEmbeddings(nn.Module):
         else:
             cat_inputs = torch.cat(raw_inputs)
             embeds = self.embeddings(cat_inputs)
+        return embeds
 
     def xavier_init_weights(self):
         nn.init.xavier_uniform_(self.embeddings.weight.data, gain=1.0)
@@ -407,7 +409,7 @@ class ChildSumTree(nn.Module):
         elif config.cell_type == 'gru' and not config.use_attention:
             self.encoder = ChildSumTreeGRUEncoder(config)
 
-    def forward(self, raw_inputs=None, packed_tree=None, bert_inputs=None):
-        embeds = self.embedddings(raw_inputs, packed_tree, bert_inputs)
-        hidden, _ = self.model(embeds, packed_tree)
-        return hidden, _
+    def forward(self, inputs):
+        embeds = self.embeddings(inputs['input_ids'])
+        hidden, _ = self.encoder(embeds, inputs['packed_tree'])
+        return hidden
