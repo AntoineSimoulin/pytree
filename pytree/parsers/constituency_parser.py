@@ -1,4 +1,4 @@
-from utils import Graph
+from pytree.parsers.utils import Graph
 import numpy as np
 
 

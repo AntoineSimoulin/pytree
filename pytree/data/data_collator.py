@@ -1,5 +1,5 @@
 import torch
-from pytree import PackedTree
+from pytree.parsers.packed_tree import PackedTree
 
 class DataCollatorForTree:
 

@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from transformers import BertModel
-from pytree.utils import GloveTokenizer
+from pytree.parsers.utils import GloveTokenizer
 
 
 class TreeLSTM(nn.Module):

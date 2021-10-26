@@ -5,6 +5,56 @@ import nltk
 import numpy as np
 
 
+
+class Graph(nx.DiGraph):
+    def __init__(self):
+        super(Graph, self).__init__()
+        # self.seq = []
+
+    @property
+    def depth(self):
+        nodes_depth = []
+        for n in self.node:
+            d = nx.shortest_path_length(self, n, self.root)
+            nodes_depth.append(d)
+            self.nodes[n]['depth'] = d
+        max_depth = max(nodes_depth)
+        return max_depth
+
+    @property
+    def root(self):
+        return list(nx.topological_sort(self))[-1]
+
+    def parents_as_children(self):
+        for n in list(self.node):
+            if len(list(self.predecessors(n))) > 0:
+                self.add_node(len(self.node) + 1)
+                for k, v in self.nodes[n].items():
+                    self.nodes[len(self.node)][k] = v
+                self.add_edges_from([(len(self.node), n)])
+        return self
+
+    def add_gost_childrens(self, N):
+        for n in list(self.node):
+            if len(list(self.predecessors(n))) == 0:
+                for _ in range(N):
+                    self.add_node(max(self.node) + 1)
+                    # self.nodes[len(self.node)]['text'] = "__gost__"
+                    self.nodes[max(self.node)]['idx'] = -1
+                    self.add_edges_from([(max(self.node), n)])
+        return self
+
+    def draw(self, col=['idx']):
+        pos = nx.drawing.nx_agraph.graphviz_layout(self.reverse(), prog='dot')
+
+        fig = plt.figure(figsize=(10, 5), dpi=300)
+        plt.axis('off')
+        fig.patch.set_alpha(0.)
+        nx.draw_networkx(self.reverse(), pos=pos, labels={n: ' '.join([self.node[n][c] for c in col]) for n in self.node},
+                         node_color="#FCFCFC", node_size=1500)
+        plt.show()
+
+
 class GloveTokenizer:
 
     def __init__(self, glove_file_path, vocab_size=None):
