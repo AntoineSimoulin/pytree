@@ -57,7 +57,7 @@ from sklearn.metrics import mean_squared_error
 from scipy.stats import pearsonr, spearmanr
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
-check_min_version("4.12.0.dev0")
+check_min_version("4.11.0")  # 4.12.0.dev0
 
 require_version("datasets>=1.8.0", "To fix: pip install -r examples/pytorch/question-answering/requirements.txt")
 
