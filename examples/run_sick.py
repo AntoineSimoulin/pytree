@@ -301,7 +301,8 @@ def main():
     glove_tokenizer = GloveTokenizer(glove_file_path=data_args.glove_file_path, vocab_size=10000)
     config = ChildSumConfig()
     encoder = ChildSumTree(config)
-    encoder.embeddings.load_pretrained_embeddings(torch.tensor(glove_tokenizer.embeddings_arr))
+    encoder.embeddings.load_pretrained_embeddings(
+        torch.tensor(glove_tokenizer.embeddings_arr, device=training_args.device))    
     model = Similarity(encoder, 50, 5)
     # config = AutoConfig.from_pretrained(
     #     model_args.config_name if model_args.config_name else model_args.model_name_or_path,
@@ -396,7 +397,7 @@ def main():
             train_dataset = train_dataset.select(range(data_args.max_train_samples))
         # Create train feature from dataset
         with training_args.main_process_first(desc="train dataset map pre-processing"):
-            dataset = train_dataset.map(
+            train_dataset = train_dataset.map(
                 prepare_train_features,
                 batched=True,
                 num_proc=data_args.preprocessing_num_workers,  # TODO if cuda is available, set to 0
@@ -422,7 +423,7 @@ def main():
                 prepare_train_features,
                 batched=True,
                 num_proc=data_args.preprocessing_num_workers,
-                remove_columns=column_names,
+                remove_columns=None,  # column_names,
                 load_from_cache_file=not data_args.overwrite_cache,
                 desc="Running tokenizer on validation dataset",
             )
@@ -443,9 +444,9 @@ def main():
                 prepare_train_features,
                 batched=True,
                 num_proc=data_args.preprocessing_num_workers,
-                remove_columns=column_names,
+                remove_columns=None,  # column_names,
                 load_from_cache_file=not data_args.overwrite_cache,
-                desc="Running tokenizer on prediction dataset",
+                desc="Running parser on prediction dataset",
             )
         if data_args.max_predict_samples is not None:
             # During Feature creation dataset samples might increase, we will select required samples again
@@ -459,7 +460,7 @@ def main():
     #     if data_args.pad_to_max_length
     #     else DataCollatorWithPadding(tokenizer, pad_to_multiple_of=8 if training_args.fp16 else None)
     # )
-    data_collator = DataCollatorForTree()
+    data_collator = DataCollatorForTree(glove_tokenizer)
 
     # Post-processing:
     # def post_processing_function(examples, features, predictions, stage="eval"):
@@ -508,10 +509,10 @@ def main():
         args=training_args,
         train_dataset=train_dataset if training_args.do_train else None,
         eval_dataset=eval_dataset if training_args.do_eval else None,
-        eval_examples=eval_examples if training_args.do_eval else None,
+        # eval_examples=eval_examples if training_args.do_eval else None,
         data_collator=data_collator,
         compute_metrics=compute_metrics,
-        optimizers=(torch.optim.Adagrad(model.parameters(), weight_decay=1e-4), None),
+        # optimizers=(torch.optim.Adagrad(model.parameters(), weight_decay=1e-4), None),
     )
     # trainer = QuestionAnsweringTrainer(
     #     model=model,

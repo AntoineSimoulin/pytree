@@ -387,8 +387,8 @@ class ChildSumTreeEmbeddings(nn.Module):
             embeds = torch.index_select(cat_inputs, 0, sum_idx.long())
             # embeds = torch.sigmoid(self.projection(embeds))
         else:
-            cat_inputs = torch.cat(raw_inputs)
-            embeds = self.embeddings(cat_inputs)
+            # cat_inputs = torch.cat(raw_inputs)
+            embeds = self.embeddings(raw_inputs)
         return embeds
 
     def xavier_init_weights(self):
@@ -411,5 +411,5 @@ class ChildSumTree(nn.Module):
 
     def forward(self, inputs):
         embeds = self.embeddings(inputs['input_ids'])
-        hidden, _ = self.encoder(embeds, inputs['packed_tree'])
+        hidden, _ = self.encoder(embeds, inputs['packed_tree'].to(embeds.device))
         return hidden

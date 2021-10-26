@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class Similarity(nn.Module):
@@ -48,5 +49,5 @@ class Similarity(nn.Module):
         # outputs = torch.relu(self.wi(outputs))  # added from Conneau, et al. (2018)
         outputs = F.log_softmax(self.wp(outputs), dim=1)  # added from Conneau, et al. (2018)
         # outputs = self.wp(outputs)
-        loss = self.criterion(outputs, torch.tensor(targets))
+        loss = self.criterion(outputs, targets.to(self.device))
         return {'logits': outputs, 'loss': loss}

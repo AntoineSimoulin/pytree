@@ -12,7 +12,7 @@ class PackedTree:
 
     """
 
-    def __init__(self, tree_idx=None, word_idx=None):
+    def __init__(self, tree_idx=None, word_idx=None, device='cpu'):
         """
         Class attributes:
             - ``tree_idx`` : `optional`, `list` of length the number of nodes in the step. Two nodes with the same parent are assigned a tree_index value.
@@ -27,7 +27,7 @@ class PackedTree:
             tree_idx = []
         self.tree_idx_ = tree_idx
 
-        self.device = torch.device('cpu')
+        self.device = torch.device(device)
 
     @property
     def word_idx(self):
