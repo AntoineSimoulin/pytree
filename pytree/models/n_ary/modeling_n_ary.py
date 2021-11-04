@@ -88,7 +88,7 @@ class TreeLSTM(nn.Module):
                 hx: Optional[Tuple[Tensor, Tensor]] = None) -> Tuple[Union[Tensor, PackedTree], Tuple[Tensor, Tensor]]:
         # if isinstance(orig_input, PackedTrees):
         batch_size = input.size(0)  # if self.batch_first else input.size(1)
-        n_steps = tree_ids.size(0)
+        n_steps = tree_ids.size(1)
         sequence_length = input.size(1)
         # else:
         #   batch_size = input.size(0) if self.batch_first else input.size(1)
