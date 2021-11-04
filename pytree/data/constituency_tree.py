@@ -49,7 +49,7 @@ def prepare_input_from_constituency_tree(constituency_tree):
             head_idx_[int(child_2_idx)] = int(head_idx)
         clean_const_idx = re.sub(r'\((\d+) \d+ \d+ \)', r'\1', clean_const_idx)
 
-    return vocab, head_idx_
+    return ['[CLS]'] + vocab, [0] + head_idx_
 
 
 class ConsTree(object):

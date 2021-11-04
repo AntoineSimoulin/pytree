@@ -28,7 +28,7 @@ class GloveTokenizer:
         # num_lines = sum(1 for _ in open(embeddings_f_path))
         num_lines = min(vocab_size, 2000000)
         with open(embeddings_f_path, 'rb') as f:
-            for i in tqdm(range(0, num_lines - 2), total=num_lines, desc="load embedding file"):
+            for i in tqdm(range(0, num_lines - 2), total=num_lines - 2, desc="load embedding file"):
                 line = next(f)
                 values = line.decode('utf-8').split()
                 if i == 0:

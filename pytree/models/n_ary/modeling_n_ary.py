@@ -69,7 +69,7 @@ class NaryTree(nn.Module):
 
     def forward(self, inputs):
         embeds = self.embeddings(inputs['input_ids'])
-        hidden, _ = self.encoder(embeds, inputs['packed_tree'].to(embeds.device))
+        hidden, _ = self.encoder(embeds, inputs['packed_tree'].to(embeds.device), inputs['packed_tree_r'].to(embeds.device), inputs['packed_tree_l'].to(embeds.device))
         return hidden
 
 
@@ -83,6 +83,8 @@ class TreeLSTM(nn.Module):
     def forward(self,
                 input: Union[Tensor, PackedTree],
                 tree_ids: Tensor = None,
+                tree_ids_r: Tensor = None,
+                tree_ids_l: Tensor = None,
                 hx: Optional[Tuple[Tensor, Tensor]] = None) -> Tuple[Union[Tensor, PackedTree], Tuple[Tensor, Tensor]]:
         # if isinstance(orig_input, PackedTrees):
         batch_size = input.size(0)  # if self.batch_first else input.size(1)
@@ -100,7 +102,7 @@ class TreeLSTM(nn.Module):
             hx = (h_zeros, c_zeros)
 
         for step in range(n_steps):
-            hx = self.tree_lstm_cell(input, hx, tree_ids[:, step, :])  # .select(0, step)
+            hx = self.tree_lstm_cell(input, hx, tree_ids[:, step, :], tree_ids_r[:, step, :], tree_ids_l[:, step, :])  # .select(0, step)
         return hx
 
 
