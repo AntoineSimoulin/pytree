@@ -25,7 +25,7 @@ Data must be in the `str` format as detailed in the example below:
 from pytree.data import prepare_input_from_constituency_tree
 
 parse_tree_example = '(TOP (S (NP (_ I)) (VP (_ saw) (NP (_ Sarah)) (PP (_ with) (NP (_ a) (_ telescope)))) (_ .)))'
-input_test, head_idx_test = prepare_input_from_constituency_tree(parse_tree)
+input_test, head_idx_test = prepare_input_from_constituency_tree(parse_tree_example)
 
 print(input_test)
 # ['I', 'saw', 'Sarah', 'with', 'a', 'telescope', '.', '[S]', '[S]', '[VP]', '[VP]', '[PP]', '[NP]']
@@ -49,7 +49,7 @@ parse_tree_example = """1	I	_	_	_	_	2	nsubj	_	_
 6	telescope	_	_	_	_	4	pobj	_	_
 7	.	_	_	_	_	2	punct	_	_
 """
-input_test, head_idx_test = prepare_input_from_dependency_tree(parse_tree)
+input_test, head_idx_test = prepare_input_from_dependency_tree(parse_tree_example)
 
 print(input_test)
 # ['I', 'saw', 'Sarah', 'with', 'a', 'telescope', '.']
