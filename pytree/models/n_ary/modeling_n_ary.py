@@ -74,11 +74,11 @@ class NaryTree(nn.Module):
 
 
 class TreeLSTM(nn.Module):
-    def __init__(self, hidden_size, embedding_size, vocab_size):
+    def __init__(self, config):
         super(TreeLSTM, self).__init__()
-        self.hidden_size = hidden_size
-        self.embedding_size = embedding_size
-        self.vocab_size = vocab_size
+        self.hidden_size = config.hidden_size
+        self.embedding_size = config.embedding_size
+        self.vocab_size = config.vocab_size
       
     def forward(self,
                 input: Union[Tensor, PackedTree],
