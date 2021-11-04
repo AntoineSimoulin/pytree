@@ -1,85 +1,55 @@
-from pytree.parsers.utils import Graph
-import numpy as np
+import re
 
 
-class ConstGraph(Graph):
-    """Class to generate Networkx Graph object from conll sentences"""
+def prepare_input_from_constituency_tree(constituency_tree):
+    cons_tree = ConsTree([])
+    tree = cons_tree.read_tree(constituency_tree[5:-1])
+    tree.close_unaries()
+    tree.left_markovize()
+    const = cons_tree.linearize_parse_tree(str(tree))
+    clean_const = re.sub(r'\(([^ ]+) ', r'([\1] ', const)
 
-    def __init__(self):
-        super(ConstGraph, self).__init__()
-        # self.root = self.get_root()
-        # self.depth = self.get_depth()
+    tokens = []
+    for token in re.sub(r'\(([^ ]+) ', r'([\1] ', clean_const).split():
+        token = token.strip('()')
+        tokens.append(token)
+    n_original_tokens = len([t for t in tokens if not t.startswith('[') and not t.endswith(']')])
+    n_tokens = len(tokens)
+    
+    clean_const = re.sub(r'\)', r' )', clean_const)
 
-    def from_string(self, consts):
-        self.build_graph(consts)
-        return self
-
-    def build_graph(self, consts):
-
-        node_idx = 1
-        head_idx = 0
-        word_idx = 0
-        i = 0
-
-        node_attr = {'head_idx': 0,
-                     'node_idx': 0,
-                     'idx': -2,
-                     'text': "",
-                     'constituent': "ROOT"}
-        self.add_node(node_attr['node_idx'])
-        for k, v in node_attr.items():
-            self.nodes[node_attr['node_idx']][k] = v
-
-        while i < len(consts):
-
-            if consts[i] == ")":
-                head_idx = int(self.node[head_idx]['head_idx'])
-                i += 1
-
+    n_original_tokens_idx = 0
+    n_specific_tokens_idx = n_original_tokens
+    clean_const_idx = ""
+    vocab = [''] * n_tokens
+    
+    for t in clean_const.split():
+        if t != ')':
+            if not t[1:].startswith('[') and not t.endswith(']'):
+                clean_const_idx += str(n_original_tokens_idx)
+                vocab[n_original_tokens_idx] = t
+                n_original_tokens_idx += 1
             else:
-                if " " in consts[i]:  # leaf
-                    c, t = consts[i].split(" ")[0], " ".join(consts[i].split(" ")[1:])
+                clean_const_idx += '('
+                clean_const_idx += str(n_specific_tokens_idx)
+                vocab[n_specific_tokens_idx] = t[1:]
+                n_specific_tokens_idx += 1
+        else:
+            clean_const_idx += ')'
+        clean_const_idx += ' '
+    
+    clean_const_idx = ''.join(clean_const_idx[:-1])
 
-                    node_attr = {'head_idx': head_idx,
-                                 'node_idx': node_idx,
-                                 'idx': word_idx,
-                                 'text': t,
-                                 'constituent': ""}
-                    # self.seq.append(node_attr['text'])
-                    self.add_node(node_attr['node_idx'])
-                    for k, v in node_attr.items():
-                        self.nodes[node_attr['node_idx']][k] = v
-                    self.add_edges_from([(node_attr['node_idx'], node_attr['head_idx'])])
+    head_idx_ = [0] * n_tokens
 
-                    head_idx = int(self.node[node_idx]['head_idx'])  # -1
-                    node_idx += 1
-                    word_idx += 1
-                    i += 2
+    regexp = re.compile(r'\((\d+) (\d+) (\d+) \)')
+    while regexp.search(clean_const_idx):
+        for (head_idx, child_1_idx, child_2_idx) in re.findall(regexp, clean_const_idx):
+            head_idx_[int(child_1_idx)] = int(head_idx)
+            head_idx_[int(child_2_idx)] = int(head_idx)
+        clean_const_idx = re.sub(r'\((\d+) \d+ \d+ \)', r'\1', clean_const_idx)
 
-                else:  # not leaf
-                    node_attr = {'head_idx': head_idx,
-                                 'node_idx': node_idx,
-                                 'idx': -2,
-                                 'text': "",
-                                 'constituent': consts[i]}
-                    self.add_node(node_attr['node_idx'])
-                    for k, v in node_attr.items():
-                        self.nodes[node_attr['node_idx']][k] = v
-                    self.add_edges_from([(node_attr['node_idx'], node_attr['head_idx'])])
-
-                    head_idx = int(node_idx)
-                    node_idx += 1
-                    i += 1
-
-        # if not nx.is_weakly_connected(self):
-        #     connected_components = nx.weakly_connected_components(self)
-        #     root = [n for n in self.nodes if self.node[n]['head_idx'] == 0][0]
-        #     main_component = [c for c in connected_components if root in c][0]
-        #     nodes_to_delet = [n for n in self.node if not n in main_component]
-        #
-        #     for n in nodes_to_delet:
-        #         self.remove_node(n)
-
+    return vocab, head_idx_
 
 
 class ConsTree(object):
@@ -99,8 +69,9 @@ class ConsTree(object):
 
     @staticmethod
     def linearize_parse_tree(parse_tree):
-        linearized_tree = [x.rstrip() for x in re.split('([\(\)])', parse_tree) if x.rstrip()]
-        linearized_tree = [x for x in linearized_tree[2:] if x != "("]
+        linearized_tree = re.sub(r'(:? ?\([^(]*\_ )([^)]*)\)', r' \2', parse_tree)
+        # linearized_tree = [x.rstrip() for x in re.split('([\(\)])', parse_tree) if x.rstrip()]
+        # linearized_tree = [x for x in linearized_tree[2:] if x != "("]
         return linearized_tree
 
     def is_leaf(self):
