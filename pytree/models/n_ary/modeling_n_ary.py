@@ -57,9 +57,9 @@ class ChildSumTreeEmbeddings(nn.Module):
         nn.init.xavier_uniform_(self.embeddings.weight.data, gain=1.0)
 
 
-class ChildSumTree(nn.Module):
+class NaryTree(nn.Module):
     def __init__(self, config):
-        super(ChildSumTree, self).__init__()
+        super(NaryTree, self).__init__()
         self.config = config
         self.embeddings = ChildSumTreeEmbeddings(config)
         if config.cell_type == 'lstm':
