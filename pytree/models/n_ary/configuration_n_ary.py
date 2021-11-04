@@ -14,6 +14,7 @@ class NaryConfig:
         tune_bert=False,
         normalize_bert_embeddings=False,
         xavier_init=True,
+        N = 2,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -28,3 +29,4 @@ class NaryConfig:
         self.tune_bert = tune_bert
         self.normalize_bert_embeddings = normalize_bert_embeddings
         self.xavier_init = xavier_init
+        self.N = N
