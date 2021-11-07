@@ -5,7 +5,7 @@ def prepare_input_from_constituency_tree(constituency_tree):
     cons_tree = ConsTree([])
     tree = cons_tree.read_tree(constituency_tree[5:-1])
     tree.close_unaries()
-    tree.left_markovize()
+    tree.left_markovize(dummy_annotation="")
     const = cons_tree.linearize_parse_tree(str(tree))
     clean_const = re.sub(r'\(([^ ]+) ', r'([\1] ', const)
 

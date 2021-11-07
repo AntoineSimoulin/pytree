@@ -107,7 +107,9 @@ class TreeLSTM(nn.Module):
 
         for step in range(n_steps):
             hx = self.tree_lstm_cell(input, hx, tree_ids[:, step, :])  # .select(0, step)
-        return hx
+        roots = tree_ids[:, 0, :].max(axis=1)[0]
+        h_root = torch.gather(hx[0], 1, roots.unsqueeze(1).unsqueeze(2).repeat(1, 1, self.hidden_size))
+        return hx, h_root
 
 
 class ChildSumTreeLSTMCell(nn.Module):
