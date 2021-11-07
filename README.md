@@ -28,10 +28,10 @@ parse_tree_example = '(TOP (S (NP (_ I)) (VP (_ saw) (NP (_ Sarah)) (PP (_ with)
 input_test, head_idx_test = prepare_input_from_constituency_tree(parse_tree_example)
 
 print(input_test)
-# ['I', 'saw', 'Sarah', 'with', 'a', 'telescope', '.', '[S]', '[S]', '[VP]', '[VP]', '[PP]', '[NP]']
+# ['[CLS]', 'I', 'saw', 'Sarah', 'with', 'a', 'telescope', '.', '[S]', '[S]', '[VP]', '[VP]', '[PP]', '[NP]']
 
 print(head_idx_test)
-# [8, 10, 10, 11, 12, 12, 7, 0, 7, 8, 9, 9, 11]
+# [0, 8, 10, 10, 11, 12, 12, 7, 0, 7, 8, 9, 9, 11]
 ```
 
 ### Prepare dependency tree data
@@ -52,8 +52,54 @@ parse_tree_example = """1	I	_	_	_	_	2	nsubj	_	_
 input_test, head_idx_test = prepare_input_from_dependency_tree(parse_tree_example)
 
 print(input_test)
-# ['I', 'saw', 'Sarah', 'with', 'a', 'telescope', '.']
+# ['[CLS]', 'I', 'saw', 'Sarah', 'with', 'a', 'telescope', '.']
 
 print(head_idx_test)
-# [2, 0, 2, 2, 6, 4, 2]
+# [0, 2, 0, 2, 2, 6, 4, 2]
 ```
+
+### Prepare data
+
+You may encode the word with GloVe emebddings :
+
+```python
+from pytree.data.glove_tokenizer import GloveTokenizer
+
+glove_tokenizer = GloveTokenizer(glove_file_path='./glove.6B.300d.txt', vocab_size=10000)
+input_test = glove_tokenizer.convert_tokens_to_ids(input_test)
+print(input_test)
+# [1, 1, 824, 1, 19, 9, 1, 4, 1, 1, 1, 1, 1, 1]
+```
+
+Then prepare the data:
+
+```python
+tree_ids_test, tree_ids_test_r, tree_ids_test_l = build_tree_ids_n_ary(head_idx_test)
+inputs = {'input_ids': torch.tensor(input_test).unsqueeze(0),
+          'packed_tree': torch.tensor(tree_ids_test).unsqueeze(0),
+          'packed_tree_r': torch.tensor(tree_ids_test_r).unsqueeze(0),
+          'packed_tree_l': torch.tensor(tree_ids_test_l).unsqueeze(0)}
+```
+
+And apply the model:
+
+```python
+from pytree.models import NaryConfig, NaryTree
+
+config = NaryConfig()
+tree_encoder = NaryTree(config)
+
+tree_encoder(inputs)
+# tensor([[[ 0.0000,  0.0000,  0.0000,  ...,  0.0000,  0.0000,  0.0000],
+#          [ 0.0012,  0.0015, -0.0026,  ..., -0.0001,  0.0002, -0.0043],
+#          [ 0.0022,  0.0024, -0.0035,  ..., -0.0002,  0.0003, -0.0058],
+#          ...,
+#          [ 0.0028,  0.0023, -0.0035,  ..., -0.0002,  0.0003, -0.0057],
+#          [ 0.0020,  0.0016, -0.0023,  ..., -0.0001,  0.0002, -0.0036],
+#          [ 0.0019,  0.0015, -0.0024,  ..., -0.0001,  0.0002, -0.0039]]],
+#        grad_fn=<MaskedScatterBackward>)
+
+print(tree_encoder(inputs).shape)
+# tree_encoder(inputs).shape
+```
+
