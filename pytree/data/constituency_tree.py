@@ -45,8 +45,8 @@ def prepare_input_from_constituency_tree(constituency_tree):
     regexp = re.compile(r'\((\d+) (\d+) (\d+) \)')
     while regexp.search(clean_const_idx):
         for (head_idx, child_1_idx, child_2_idx) in re.findall(regexp, clean_const_idx):
-            head_idx_[int(child_1_idx)] = int(head_idx)
-            head_idx_[int(child_2_idx)] = int(head_idx)
+            head_idx_[int(child_1_idx)] = int(head_idx) + 1
+            head_idx_[int(child_2_idx)] = int(head_idx) + 1
         clean_const_idx = re.sub(r'\((\d+) \d+ \d+ \)', r'\1', clean_const_idx)
 
     return ['[CLS]'] + vocab, [0] + head_idx_

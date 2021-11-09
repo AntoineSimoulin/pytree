@@ -84,7 +84,7 @@ def get_nodes_detph(head_idx):
 
 def pad_tree_ids(tree_ids, depth):
   tree_depth = tree_ids.shape[0]
-  padding = np.zeros_like(tree_ids[0:(max(depth - tree_depth, 0))])
+  padding = np.zeros((max(depth - tree_depth, 0), tree_ids.shape[1]), dtype=tree_ids.dtype)
   return np.concatenate((tree_ids, padding), axis=0)
 
 

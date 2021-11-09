@@ -42,12 +42,16 @@ from transformers.utils.versions import require_version
 # from utils_qa import postprocess_qa_predictions
 
 from pytree import (
+    NaryConfig, 
+    NaryTree,
     ChildSumConfig,
     ChildSumTree,
     GloveTokenizer,
-    Similarity
+    Similarity,
+    SimilarityConfig
 )
 from pytree.data import prepare_input_from_constituency_tree, prepare_input_from_dependency_tree
+from pytree.data.utils import build_tree_ids_n_ary
 
 from supar import Parser
 import torch
@@ -300,11 +304,14 @@ def main():
     # dep = Parser.load('biaffine-dep-en')
     con = Parser.load('crf-con-en')
     glove_tokenizer = GloveTokenizer(glove_file_path=data_args.glove_file_path, vocab_size=10000)
-    config = ChildSumConfig()
-    encoder = ChildSumTree(config)
+    # config = ChildSumConfig()
+    # encoder = ChildSumTree(config)
+    config = NaryConfig()
+    encoder = NaryTree(config)
     encoder.embeddings.load_pretrained_embeddings(
         torch.tensor(glove_tokenizer.embeddings_arr, device=training_args.device))    
-    model = Similarity(encoder, 50, 5)
+    config_similarity = SimilarityConfig()
+    model = Similarity(encoder, config_similarity)
     # config = AutoConfig.from_pretrained(
     #     model_args.config_name if model_args.config_name else model_args.model_name_or_path,
     #     cache_dir=model_args.cache_dir,
@@ -393,25 +400,37 @@ def main():
         examples['input_ids_B'] = []
         examples['head_idx_A'] = []
         examples['head_idx_B'] = []
+        # examples['tree_id_A'] = []
+        # examples['tree_id_B'] = []
+        # examples['tree_ids_r_A'] = []
+        # examples['tree_ids_r_B'] = []
+        # examples['tree_ids_l_A'] = []
+        # examples['tree_ids_l_B'] = []
         examples['labels'] = []
         
         for sent_A in examples['sentence_A']:
             con_tree_A = str(con.predict(sent_A.split(), verbose=False)[0])
             input_ids_A, head_idx_A = prepare_input_from_constituency_tree(con_tree_A)
             input_ids_A = glove_tokenizer.convert_tokens_to_ids(input_ids_A)
+            # tree_ids_A, tree_ids_r_A, tree_ids_l_A = build_tree_ids_n_ary(head_idx_A)
             examples['input_ids_A'].append(input_ids_A)
             examples['head_idx_A'].append(head_idx_A)
-        # examples['input_ids_A'] = pad(examples['input_ids_A'])
-        # examples['head_idx_A'] = pad(examples['head_idx_A'])
+            # examples['input_ids_A'].append(input_ids_A)
+            # examples['tree_id_A'].append(tree_ids_A)
+            # examples['tree_ids_r_A'].append(tree_ids_r_A)
+            # examples['tree_ids_l_A'].append(tree_ids_l_A)
         
         for sent_B in examples['sentence_B']:
             con_tree_B = str(con.predict(sent_B.split(), verbose=False)[0])
             input_ids_B, head_idx_B = prepare_input_from_constituency_tree(con_tree_B)
             input_ids_B = glove_tokenizer.convert_tokens_to_ids(input_ids_B)
+            # tree_ids_B, tree_ids_r_B, tree_ids_l_B = build_tree_ids_n_ary(head_idx_B)
             examples['input_ids_B'].append(input_ids_B)
             examples['head_idx_B'].append(head_idx_B)
-        # examples['input_ids_B'] = pad(examples['input_ids_B'])
-        # examples['head_idx_B'] = pad(examples['head_idx_B'])
+            # examples['input_ids_B'].append(input_ids_B)
+            # examples['tree_id_B'].append(tree_ids_B)
+            # examples['tree_ids_r_B'].append(tree_ids_r_B)
+            # examples['tree_ids_l_B'].append(tree_ids_l_B)
     
         for rel_score in examples['relatedness_score']:
             examples['labels'].append(map_label_to_target(rel_score, 5))
@@ -490,22 +509,29 @@ def main():
     #     if data_args.pad_to_max_length
     #     else DataCollatorWithPadding(tokenizer, pad_to_multiple_of=8 if training_args.fp16 else None)
     # )
+    
     def data_collator_with_padding(features, pad_ids=0, columns=None):
-        first = next(iter(features)) # features[0]
         batch = {}
+        first = features[0]
         if columns is None:
-            columns = []
+            columns = ["head_idx_A", "head_idx_B", "input_ids_A", "input_ids_B"]
         feature_max_len = {k: max([len(f[k]) for f in features]) for k in first.keys() if k in columns or len(columns) == 0}
         for k, v in first.items():
             if k in columns or len(columns) == 0:
-                if isinstance(v, torch.Tensor):
-                    feature_paddded = [f[k] + [pad_ids] * (feature_max_len[k] - len(f[k])) for f in features]
-                    batch[k] = torch.stack(feature_paddded)
-                else:
-                    feature_paddded = [f[k] + [pad_ids] * (feature_max_len[k] - len(f[k])) for f in features]
-                    batch[k] = torch.tensor(feature_paddded)  # [f[k] for f in features]
+                feature_padded = [list([int(ff) for ff in f[k]]) + [0] * (feature_max_len[k] - len(f[k])) for f in features]
+                batch[k] = feature_padded  # [f[k] for f in features]
+        tree_ids_A, tree_ids_r_A, tree_ids_l_A = build_tree_ids_n_ary(batch['head_idx_A'])
+        tree_ids_B, tree_ids_r_B, tree_ids_l_B = build_tree_ids_n_ary(batch['head_idx_B'])
+        batch['input_ids_A'] = torch.tensor(batch['input_ids_A'])
+        batch['input_ids_B'] = torch.tensor(batch['input_ids_B'])
+        batch['tree_ids_A'] = torch.tensor(tree_ids_A)
+        batch['tree_ids_B'] = torch.tensor(tree_ids_B)
+        batch['tree_ids_r_A'] = torch.tensor(tree_ids_r_A)
+        batch['tree_ids_r_B'] = torch.tensor(tree_ids_r_B)
+        batch['tree_ids_l_A'] = torch.tensor(tree_ids_l_A)
+        batch['tree_ids_l_B'] = torch.tensor(tree_ids_l_B)
+        batch['labels'] = torch.tensor([f['labels'] for f in features])
         return batch
-
 
     data_collator = data_collator_with_padding
 

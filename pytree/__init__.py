@@ -4,6 +4,7 @@ from .models import (
     ChildSumTree,
     ChildSumConfig,
     Similarity,
+    SimilarityConfig,
 )
 from .data import (
     PackedTree,

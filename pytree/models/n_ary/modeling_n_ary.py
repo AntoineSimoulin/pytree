@@ -6,10 +6,10 @@ from transformers import BertModel
 from pytree.data.packed_tree import PackedTree
 
 
-class ChildSumTreeEmbeddings(nn.Module):
+class TreeEmbeddings(nn.Module):
 
     def __init__(self, config):
-        super(ChildSumTreeEmbeddings, self).__init__()
+        super(TreeEmbeddings, self).__init__()
         self.use_bert = config.use_bert
         self.tune_bert = config.tune_bert
         self.normalize_bert_embeddings = config.normalize_bert_embeddings
@@ -61,7 +61,7 @@ class NaryTree(nn.Module):
     def __init__(self, config):
         super(NaryTree, self).__init__()
         self.config = config
-        self.embeddings = ChildSumTreeEmbeddings(config)
+        self.embeddings = TreeEmbeddings(config)
         if config.cell_type == 'lstm':
             self.encoder = NaryTreeLSTMEncoder(config)
         elif config.cell_type == 'gru':
@@ -69,7 +69,7 @@ class NaryTree(nn.Module):
 
     def forward(self, inputs):
         embeds = self.embeddings(inputs['input_ids'])
-        hidden, _ = self.encoder(embeds, inputs['packed_tree'].to(embeds.device), inputs['packed_tree_r'].to(embeds.device), inputs['packed_tree_l'].to(embeds.device))
+        _, hidden = self.encoder(embeds, inputs['tree_ids'].to(embeds.device), inputs['tree_ids_r'].to(embeds.device), inputs['tree_ids_l'].to(embeds.device))
         return hidden
 
 
@@ -81,29 +81,31 @@ class TreeLSTM(nn.Module):
         self.vocab_size = config.vocab_size
       
     def forward(self,
-                input: Union[Tensor, PackedTree],
+                input_ids: Union[Tensor, PackedTree],
                 tree_ids: Tensor = None,
                 tree_ids_r: Tensor = None,
                 tree_ids_l: Tensor = None,
                 hx: Optional[Tuple[Tensor, Tensor]] = None) -> Tuple[Union[Tensor, PackedTree], Tuple[Tensor, Tensor]]:
         # if isinstance(orig_input, PackedTrees):
-        batch_size = input.size(0)  # if self.batch_first else input.size(1)
+        batch_size = input_ids.size(0)  # if self.batch_first else input.size(1)
         n_steps = tree_ids.size(1)
-        sequence_length = input.size(1)
+        sequence_length = input_ids.size(1)
         # else:
         #   batch_size = input.size(0) if self.batch_first else input.size(1)
         #   n_steps = tree_ids.size(0)
           
         if hx is None:
             h_zeros = torch.zeros(batch_size, sequence_length, self.hidden_size,
-                                  dtype=input.dtype, device=input.device)
+                                  dtype=input_ids.dtype, device=input_ids.device)
             c_zeros = torch.zeros(batch_size, sequence_length, self.hidden_size,
-                                  dtype=input.dtype, device=input.device)
+                                  dtype=input_ids.dtype, device=input_ids.device)
             hx = (h_zeros, c_zeros)
 
         for step in range(n_steps):
-            hx = self.tree_lstm_cell(input, hx, tree_ids[:, step, :], tree_ids_r[:, step, :], tree_ids_l[:, step, :])  # .select(0, step)
-        return hx
+            hx = self.tree_lstm_cell(input_ids, hx, tree_ids[:, step, :], tree_ids_r[:, step, :], tree_ids_l[:, step, :])  # .select(0, step)
+        roots = tree_ids[:, 0, :].max(axis=1)[0]
+        h_root = torch.gather(hx[0], 1, roots.unsqueeze(1).unsqueeze(2).repeat(1, 1, self.hidden_size)).squeeze()
+        return hx, h_root
 
 
 class NaryTreeLSTMCell(nn.Module):
@@ -125,12 +127,21 @@ class NaryTreeLSTMCell(nn.Module):
         index_r = tree_ids_dr.unsqueeze(-1).repeat(1, 1, self.hidden_size)
         index_l = tree_ids_dl.unsqueeze(-1).repeat(1, 1, self.hidden_size)
         
-        iou_x = self.ioux(x)
+        # iou_x = self.ioux(x)
+        iou = self.ioux(x)
+        # print('shape ioux', iou_x.shape)
         iou_hr = self.iouh[0](hx[0])
+        # print('iouhr shape', iou_hr.shape)
         iou_hl = self.iouh[1](hx[0])
-        iou = iou_x + \
-          torch.zeros_like(iou_x).scatter_add_(1, index_r, iou_hr) + \
-          torch.zeros_like(iou_x).scatter_add_(1, index_l, iou_hl)
+        # iou = iou_x + \
+        #   torch.zeros_like(iou_x).scatter_add_(1, index_r, iou_hr) + \
+        #   torch.zeros_like(iou_x).scatter_add_(1, index_l, iou_hl)
+        # print('index r shape', index_r.shape)
+        # print('index_r', index_r)
+        iou = torch.scatter_add(iou, 1, index_r.repeat(1, 1, 3), iou_hr)
+        iou = torch.scatter_add(iou, 1, index_l.repeat(1, 1, 3), iou_hl)
+        # iou = iou_x.scatter_add_(1, index_r, iou_hr)
+        # iou = iou_x.scatter_add_(1, index_l, iou_hl)
         
         i, o, u = torch.split(iou, iou.size(-1) // 3, dim=-1)
         i, o, u = torch.sigmoid(i), torch.sigmoid(o), torch.tanh(u)
@@ -143,11 +154,15 @@ class NaryTreeLSTMCell(nn.Module):
         f = torch.sigmoid(f)
         fc = torch.mul(f, hx[1])
         
-        c = torch.mul(i, u) + torch.zeros_like(fc).scatter_add_(1, index, fc)
+        # c = torch.mul(i, u) + torch.zeros_like(fc).scatter_add_(1, index, fc)
+        c = torch.mul(i, u)
+        c = c.scatter_add_(1, index, fc)
         h = torch.mul(o, torch.tanh(c))
         
-        h = hx[0].masked_scatter_(index.bool(), h)
-        c = hx[1].masked_scatter_(index.bool(), c)
+        # h = hx[0].masked_scatter_(index.bool(), h)
+        h = torch.where(index.bool(), h, hx[0])
+        # c = hx[1].masked_scatter_(index.bool(), c)
+        c = torch.where(index.bool(), c, hx[1])
 
         return h, c
 

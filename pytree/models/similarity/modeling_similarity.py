@@ -4,12 +4,13 @@ import torch.nn.functional as F
 
 
 class Similarity(nn.Module):
-    def __init__(self, encoder, hidden_similarity_size, num_classes):
+    def __init__(self, encoder, config):
         super(Similarity, self).__init__()
+        self.config = config
         self.encoder = encoder
-        self.hidden_similarity_size = hidden_similarity_size
+        self.hidden_similarity_size = config.hidden_similarity_size
         self.hidden_size = encoder.config.hidden_size
-        self.num_classes = num_classes
+        self.num_classes = config.num_classes
         self.wh = nn.Linear(2 * self.hidden_size, self.hidden_similarity_size)
         # self.wi = nn.Linear(self.hidden_similarity_size, self.hidden_similarity_size)  # added from Conneau, et al. (2018)
         # self.wii = nn.Linear(self.hidden_similarity_size,

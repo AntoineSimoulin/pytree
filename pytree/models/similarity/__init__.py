@@ -1,1 +1,2 @@
 from .modeling_similarity import Similarity
+from .configuration_similarity import SimilarityConfig
