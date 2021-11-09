@@ -1,7 +1,4 @@
-import json
-from typing import Any, Dict, Tuple, Union
-import copy
-from pytree import Config
+from pytree.data.config import Config
 
 
 class SimilarityConfig(Config):

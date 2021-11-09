@@ -474,7 +474,7 @@ def main():
                 num_proc=data_args.preprocessing_num_workers,
                 remove_columns=None,  # column_names,
                 load_from_cache_file=not data_args.overwrite_cache,
-                desc="Running tokenizer on validation dataset",
+                desc="Running parser on validation dataset",
             )
         if data_args.max_eval_samples is not None:
             # During Feature creation dataset samples might increase, we will select required samples again
