@@ -1,6 +1,10 @@
+import json
+from typing import Any, Dict, Tuple, Union
+import copy
+from pytree import Config
 
 
-class SimilarityConfig:
+class SimilarityConfig(Config):
 
     def __init__(
         self,
@@ -12,4 +16,3 @@ class SimilarityConfig:
 
         self.num_classes = num_classes
         self.hidden_similarity_size = hidden_similarity_size
-

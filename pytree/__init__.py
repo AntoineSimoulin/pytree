@@ -12,4 +12,5 @@ from .data import (
     DataCollatorForTree,
     prepare_input_from_constituency_tree,
     prepare_input_from_dependency_tree,
+    Config,
 )
