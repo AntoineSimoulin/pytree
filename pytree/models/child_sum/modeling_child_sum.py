@@ -107,7 +107,7 @@ class TreeLSTM(nn.Module):
 
         for step in range(n_steps):
             hx = self.tree_lstm_cell(input, hx, tree_ids[:, step, :])  # .select(0, step)
-        roots = tree_ids[:, 0, :].max(axis=1)[0]
+        roots = tree_ids[:, -1, :].max(axis=1)[0]
         h_root = torch.gather(hx[0], 1, roots.unsqueeze(1).unsqueeze(2).repeat(1, 1, self.hidden_size)).squeeze()
         return hx, h_root
 
@@ -128,6 +128,9 @@ class ChildSumTreeLSTMCell(nn.Module):
         # import pdb; pdb.set_trace()
         index = tree_ids_d.unsqueeze(-1).repeat(1, 1, self.hidden_size)
         h_sum = torch.zeros_like(hx[0]).scatter_add_(1, index, hx[0])
+        updated_nodes = torch.zeros_like(index).scatter_add_(1, index, torch.ones_like(index))
+        updated_nodes[:, 0, :] = 0
+        updated_nodes = updated_nodes.bool()
 
         iou = self.ioux(x) + self.iouh(h_sum)
         i, o, u = torch.split(iou, iou.size(-1) // 3, dim=-1)
@@ -136,14 +139,17 @@ class ChildSumTreeLSTMCell(nn.Module):
         f = self.fh(hx[0]) + self.fx(x).gather(1, index)
         f = torch.sigmoid(f)
         fc = torch.mul(f, hx[1])
+
+        c = torch.mul(i, u)
+        c = c.scatter_add_(1, index, fc)
         
-        c = torch.mul(i, u) + torch.zeros_like(fc).scatter_add_(1, index, fc)
+        # c = torch.mul(i, u) + torch.zeros_like(fc).scatter_add_(1, index, fc)
         h = torch.mul(o, torch.tanh(c))
         
         # h = hx[0].masked_scatter_(index.bool(), h)
-        h = torch.where(index.bool(), h, hx[0])
+        h = torch.where(updated_nodes, h, hx[0])  # index.bool()
         # c = hx[1].masked_scatter_(index.bool(), c)
-        c = torch.where(index.bool(), c, hx[1])
+        c = torch.where(updated_nodes, c, hx[1])  # index.bool()
 
         return h, c
 

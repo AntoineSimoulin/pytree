@@ -67,6 +67,33 @@ require_version("datasets>=1.8.0", "To fix: pip install -r examples/pytorch/ques
 
 logger = logging.getLogger(__name__)
 
+class SickTrainer(Trainer):
+    
+    def create_optimizer(self):
+        """
+        Setup the optimizer.
+
+        We provide a reasonable default that works well. If you want to use something else, you can pass a tuple in the
+        Trainer's init through :obj:`optimizers`, or subclass and override this method in a subclass.
+        """
+        self.optimizer = torch.optim.Adagrad(self.model.parameters(), 
+            lr=self.args.learning_rate, 
+            weight_decay=self.args.weight_decay)
+    
+        # if self.sharded_ddp == ShardedDDPOption.SIMPLE:
+        #     self.optimizer = OSS(
+        #         params=optimizer_grouped_parameters,
+        #         optim=optimizer_cls,
+        #         **optimizer_kwargs,
+        #     )
+        # else:
+        #     self.optimizer = optimizer_cls(optimizer_grouped_parameters, **optimizer_kwargs)
+
+        # if is_sagemaker_mp_enabled():
+        #     self.optimizer = smp.DistributedOptimizer(self.optimizer)
+
+        return self.optimizer
+
 
 @dataclass
 class ModelArguments:
@@ -278,7 +305,7 @@ def main():
     if data_args.dataset_name is not None:
         # Downloading and loading a dataset from the hub.
         raw_datasets = load_dataset(
-            data_args.dataset_name, data_args.dataset_config_name, cache_dir=model_args.cache_dir
+            data_args.dataset_name, data_args.dataset_config_name, cache_dir=model_args.cache_dir, keep_in_memory=False,
         )
     else:
         data_files = {}
@@ -303,7 +330,7 @@ def main():
     # download model & vocab.
     # dep = Parser.load('biaffine-dep-en')
     con = Parser.load('crf-con-en')
-    glove_tokenizer = GloveTokenizer(glove_file_path=data_args.glove_file_path, vocab_size=10000)
+    glove_tokenizer = GloveTokenizer(glove_file_path=data_args.glove_file_path, vocab_size=100000)
     # config = ChildSumConfig()
     # encoder = ChildSumTree(config)
     config = NaryConfig()
@@ -577,15 +604,15 @@ def main():
     #     return metric.compute(predictions=p.predictions, references=p.label_ids)
 
     # Initialize our Trainer
-    trainer = Trainer(
+    trainer = SickTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset if training_args.do_train else None,
-        eval_dataset=eval_dataset if training_args.do_eval else None,
+        eval_dataset=predict_dataset if training_args.do_eval else None,  # eval_dataset
         # eval_examples=eval_examples if training_args.do_eval else None,
         data_collator=data_collator,
         compute_metrics=compute_metrics,
-        # optimizers=(torch.optim.Adagrad(model.parameters(), weight_decay=1e-4), None),
+        optimizers=("Adagrad", None),
     )
     # trainer = QuestionAnsweringTrainer(
     #     model=model,

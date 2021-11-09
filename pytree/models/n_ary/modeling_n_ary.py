@@ -103,7 +103,7 @@ class TreeLSTM(nn.Module):
 
         for step in range(n_steps):
             hx = self.tree_lstm_cell(input_ids, hx, tree_ids[:, step, :], tree_ids_r[:, step, :], tree_ids_l[:, step, :])  # .select(0, step)
-        roots = tree_ids[:, 0, :].max(axis=1)[0]
+        roots = tree_ids[:, -1, :].max(axis=1)[0]
         h_root = torch.gather(hx[0], 1, roots.unsqueeze(1).unsqueeze(2).repeat(1, 1, self.hidden_size)).squeeze()
         return hx, h_root
 
@@ -113,10 +113,10 @@ class NaryTreeLSTMCell(nn.Module):
     def __init__(self, config):
         super(NaryTreeLSTMCell, self).__init__()
         self.N = config.N
-        self.ioux = nn.Linear(config.embedding_size, 3 * config.hidden_size, bias=False)
-        self.iouh = nn.ModuleList([nn.Linear(config.hidden_size, 3 * config.hidden_size) for i in range(config.N)])
-        self.fx = nn.Linear(config.embedding_size, config.hidden_size, bias=False)
-        self.fh = nn.ModuleList([nn.Linear(config.hidden_size, config.hidden_size) for i in range(config.N * config.N)])
+        self.ioux = nn.Linear(config.embedding_size, 3 * config.hidden_size, bias=True)
+        self.iouh = nn.ModuleList([nn.Linear(config.hidden_size, 3 * config.hidden_size, bias=False) for i in range(config.N)])
+        self.fx = nn.Linear(config.embedding_size, config.hidden_size, bias=True)
+        self.fh = nn.ModuleList([nn.Linear(config.hidden_size, config.hidden_size, bias=False) for i in range(config.N * config.N)])
         self.hidden_size = config.hidden_size
         self.embedding_size = config.embedding_size
 
@@ -126,7 +126,10 @@ class NaryTreeLSTMCell(nn.Module):
         index = tree_ids_d.unsqueeze(-1).repeat(1, 1, self.hidden_size)
         index_r = tree_ids_dr.unsqueeze(-1).repeat(1, 1, self.hidden_size)
         index_l = tree_ids_dl.unsqueeze(-1).repeat(1, 1, self.hidden_size)
-        
+        updated_nodes = torch.zeros_like(index).scatter_add_(1, index, torch.ones_like(index))
+        updated_nodes[:, 0, :] = 0
+        updated_nodes = updated_nodes.bool()
+
         # iou_x = self.ioux(x)
         iou = self.ioux(x)
         # print('shape ioux', iou_x.shape)
@@ -160,9 +163,9 @@ class NaryTreeLSTMCell(nn.Module):
         h = torch.mul(o, torch.tanh(c))
         
         # h = hx[0].masked_scatter_(index.bool(), h)
-        h = torch.where(index.bool(), h, hx[0])
+        h = torch.where(updated_nodes, h, hx[0])  # index.bool()
         # c = hx[1].masked_scatter_(index.bool(), c)
-        c = torch.where(index.bool(), c, hx[1])
+        c = torch.where(updated_nodes, c, hx[1])  # index.bool()
 
         return h, c
 

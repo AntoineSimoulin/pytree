@@ -5,7 +5,7 @@ class NaryConfig:
     def __init__(
         self,
         embedding_size=300,
-        hidden_size=100,
+        hidden_size=150,
         vocab_size=10000,
         hidden_dropout_prob=0.,
         cell_type='lstm',
@@ -14,7 +14,7 @@ class NaryConfig:
         tune_bert=False,
         normalize_bert_embeddings=False,
         xavier_init=True,
-        N = 2,
+        N=2,
         **kwargs
     ):
         super().__init__(**kwargs)

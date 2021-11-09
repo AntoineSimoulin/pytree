@@ -5,7 +5,7 @@
 <p>
 
 **PyTree** implements tree-structured neural networks in PyTorch.
-The package provides highly generic recursive neural network implementations as well as efficient batching methods.
+The package provides highly generic tree-structured neural network implementations as well as efficient batching methods.
 
 ## Installation
 

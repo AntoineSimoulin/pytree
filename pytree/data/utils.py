@@ -82,11 +82,14 @@ def get_nodes_detph(head_idx):
   return depth
 
 
+# def pad_tree_ids(tree_ids, depth):
+#   tree_depth = tree_ids.shape[0]
+#   padding = np.zeros((max(depth - tree_depth, 0), tree_ids.shape[1]), dtype=tree_ids.dtype)
+#   return np.concatenate((tree_ids, padding), axis=0)
 def pad_tree_ids(tree_ids, depth):
   tree_depth = tree_ids.shape[0]
   padding = np.zeros((max(depth - tree_depth, 0), tree_ids.shape[1]), dtype=tree_ids.dtype)
-  return np.concatenate((tree_ids, padding), axis=0)
-
+  return np.concatenate((padding, tree_ids), axis=0)
 
 # def build_tree_ids(head_idx):
 #   if isinstance(head_idx[0], list):
@@ -125,12 +128,18 @@ def build_tree_ids_n_ary(head_idx):
       np.array([pad_tree_ids(t[2], depth) for t in tree_ids])
   tree_ids = []
   node_idx = [get_root(head_idx)]
+  # while len(node_idx) > 0:
+  #   node_idx = get_childrens(node_idx, head_idx)
+  #   tree_step = [h_idx if idx in node_idx else 0 for idx, h_idx in enumerate(head_idx)]
+  #   tree_ids.append(tree_step)
+  # tree_ids = tree_ids[:-1]
+  # tree_ids.append(range(0, len(head_idx)))
   while len(node_idx) > 0:
     node_idx = get_childrens(node_idx, head_idx)
     tree_step = [h_idx if idx in node_idx else 0 for idx, h_idx in enumerate(head_idx)]
-    tree_ids.append(tree_step)
-  tree_ids = tree_ids[:-1]
-  tree_ids.append(range(0, len(head_idx)))
+    tree_ids.insert(0, tree_step)
+  tree_ids = tree_ids[1:]
+  tree_ids.insert(0, range(0, len(head_idx)))
   tree_ids_r = [[t if (i % 2 == 0) else 0 for (i, t) in enumerate(ti)] for ti in tree_ids]
   tree_ids_d = [[t if (i % 2 == 1) else 0 for (i, t) in enumerate(ti)] for ti in tree_ids]
   return np.array(tree_ids), np.array(tree_ids_r), np.array(tree_ids_d)

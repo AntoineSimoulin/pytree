@@ -46,7 +46,8 @@ class Similarity(nn.Module):
         # mlp_output = self.dropout(mlp_output)  # added from Choi, et al. (2018)
         # outputs = F.log_softmax(self.wp(mlp_output), dim=1)  # added from Choi, et al. (2018)
 
-        outputs = torch.relu(self.wh(vec_dist))  # added from Conneau, et al. (2018)
+        # outputs = torch.relu(self.wh(vec_dist))  # added from Conneau, et al. (2018)
+        outputs = torch.sigmoid(self.wh(vec_dist))  # added from Conneau, et al. (2018)
         # outputs = torch.relu(self.wi(outputs))  # added from Conneau, et al. (2018)
         outputs = F.log_softmax(self.wp(outputs), dim=1)  # added from Conneau, et al. (2018)
         # outputs = self.wp(outputs)
