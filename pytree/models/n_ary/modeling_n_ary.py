@@ -69,8 +69,8 @@ class NaryTree(nn.Module):
 
     def forward(self, inputs):
         embeds = self.embeddings(inputs['input_ids'])
-        _, hidden = self.encoder(embeds, inputs['tree_ids'].to(embeds.device), inputs['tree_ids_r'].to(embeds.device), inputs['tree_ids_l'].to(embeds.device))
-        return hidden
+        hidden, h_root = self.encoder(embeds, inputs['tree_ids'].to(embeds.device), inputs['tree_ids_r'].to(embeds.device), inputs['tree_ids_l'].to(embeds.device))
+        return hidden, h_root
 
 
 class TreeLSTM(nn.Module):

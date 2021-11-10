@@ -27,8 +27,8 @@ class Similarity(nn.Module):
         inputs = {a: kwargs[a] for a in kwargs}
         targets = inputs['labels']
         
-        lhidden = self.encoder({k[:-2]: v.to(self.device) if torch.is_tensor(v) else v for (k, v) in inputs.items() if k.endswith('_A')})
-        rhidden = self.encoder({k[:-2]: v.to(self.device) if torch.is_tensor(v) else v for (k, v) in inputs.items() if k.endswith('_B')})
+        _, lhidden = self.encoder({k[:-2]: v.to(self.device) if torch.is_tensor(v) else v for (k, v) in inputs.items() if k.endswith('_A')})
+        _, rhidden = self.encoder({k[:-2]: v.to(self.device) if torch.is_tensor(v) else v for (k, v) in inputs.items() if k.endswith('_B')})
         # lhidden = F.normalize(lhidden, p=2, dim=1)
         # rhidden = F.normalize(rhidden, p=2, dim=1)
         # output = self.similarity(lhidden, rhidden)

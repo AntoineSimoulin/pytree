@@ -39,7 +39,6 @@ from transformers import (
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version
 from transformers.utils.versions import require_version
-# from utils_qa import postprocess_qa_predictions
 
 from pytree import (
     NaryConfig, 
@@ -328,46 +327,15 @@ def main():
     # Distributed training:
     # The .from_pretrained methods guarantee that only one local process can concurrently
     # download model & vocab.
-    # dep = Parser.load('biaffine-dep-en')
     con = Parser.load('crf-con-en')
-    glove_tokenizer = GloveTokenizer(glove_file_path=data_args.glove_file_path, vocab_size=100000)
-    # config = ChildSumConfig()
-    # encoder = ChildSumTree(config)
+    glove_tokenizer = GloveTokenizer(glove_file_path=data_args.glove_file_path, vocab_size=2000000)
+
     config = NaryConfig()
     encoder = NaryTree(config)
     encoder.embeddings.load_pretrained_embeddings(
         torch.tensor(glove_tokenizer.embeddings_arr, device=training_args.device))    
     config_similarity = SimilarityConfig()
     model = Similarity(encoder, config_similarity)
-    # config = AutoConfig.from_pretrained(
-    #     model_args.config_name if model_args.config_name else model_args.model_name_or_path,
-    #     cache_dir=model_args.cache_dir,
-    #     revision=model_args.model_revision,
-    #     use_auth_token=True if model_args.use_auth_token else None,
-    # )
-    # tokenizer = AutoTokenizer.from_pretrained(
-    #     model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
-    #     cache_dir=model_args.cache_dir,
-    #     use_fast=True,
-    #     revision=model_args.model_revision,
-    #     use_auth_token=True if model_args.use_auth_token else None,
-    # )
-    # model = AutoModelForQuestionAnswering.from_pretrained(
-    #     model_args.model_name_or_path,
-    #     from_tf=bool(".ckpt" in model_args.model_name_or_path),
-    #     config=config,
-    #     cache_dir=model_args.cache_dir,
-    #     revision=model_args.model_revision,
-    #     use_auth_token=True if model_args.use_auth_token else None,
-    # )
-
-    # Tokenizer check: this script requires a fast tokenizer.
-    # if not isinstance(tokenizer, PreTrainedTokenizerFast):
-    #     raise ValueError(
-    #         "This example script only works for models that have a fast tokenizer. Checkout the big table of models "
-    #         "at https://huggingface.co/transformers/index.html#supported-frameworks to find the model types that meet this "
-    #         "requirement"
-    #     )
 
     # Preprocessing the datasets.
     # Preprocessing is slighlty different for training and evaluation.
@@ -377,19 +345,6 @@ def main():
         column_names = raw_datasets["validation"].column_names
     else:
         column_names = raw_datasets["test"].column_names
-    # question_column_name = "question" if "question" in column_names else column_names[0]
-    # context_column_name = "context" if "context" in column_names else column_names[1]
-    # answer_column_name = "answers" if "answers" in column_names else column_names[2]
-
-    # Padding side determines if we do (question|context) or (context|question).
-    # pad_on_right = tokenizer.padding_side == "right"
-
-    # if data_args.max_seq_length > tokenizer.model_max_length:
-    #     logger.warning(
-    #         f"The max_seq_length passed ({data_args.max_seq_length}) is larger than the maximum length for the"
-    #         f"model ({tokenizer.model_max_length}). Using max_seq_length={tokenizer.model_max_length}."
-    #     )
-    # max_seq_length = min(data_args.max_seq_length, tokenizer.model_max_length)
 
     def map_label_to_target(label, num_classes, ):
         target = [0] * num_classes  # torch.zeros(1, num_classes, dtype=torch.float)
@@ -402,63 +357,35 @@ def main():
             target[ceil - 1] = label - floor
         return target
 
-    def process_target_sick(label, num_classes):
-        targets = list(map(lambda x: map_label_to_target(x, num_classes), label))
-        return targets
-
-    # Training preprocessing: parse examples in dependency
-    # def prepare_train_features(examples):
-    #     parsed_examples = [str(d) for d in dep.predict([s.split() for s in examples['sentence_A']], verbose=False)]
-    #     parsed_examples = [[x for x in str(conll).split('\n') if x != ''] for conll in parsed_examples]
-    #     parsed_examples = [DepGraph(conll) for conll in parsed_examples]
-    #     parsed_examples = [PackedTree().from_graphs(conll.add_gost_childrens(1), col="idx") for conll in parsed_examples]
-    #     examples['dep_A'] = [str(s) for s in parsed_examples]
-
-    #     parsed_examples = [str(d) for d in dep.predict([s.split() for s in examples['sentence_B']], verbose=False)]
-    #     parsed_examples = [[x for x in str(conll).split('\n') if x != ''] for conll in parsed_examples]
-    #     parsed_examples = [DepGraph(conll) for conll in parsed_examples]
-    #     parsed_examples = [PackedTree().from_graphs(conll.add_gost_childrens(1), col="idx") for conll in parsed_examples]
-    #     examples['dep_B'] = [str(s) for s in parsed_examples]
-
-    #     examples['labels'] = process_target_sick(examples['relatedness_score'], 5)
-    #     return examples
     def prepare_train_features(examples):
         examples['input_ids_A'] = []
         examples['input_ids_B'] = []
         examples['head_idx_A'] = []
         examples['head_idx_B'] = []
-        # examples['tree_id_A'] = []
-        # examples['tree_id_B'] = []
-        # examples['tree_ids_r_A'] = []
-        # examples['tree_ids_r_B'] = []
-        # examples['tree_ids_l_A'] = []
-        # examples['tree_ids_l_B'] = []
+        examples['head_idx_r_A'] = []
+        examples['head_idx_r_B'] = []
+        examples['head_idx_l_A'] = []
+        examples['head_idx_l_B'] = []
         examples['labels'] = []
         
         for sent_A in examples['sentence_A']:
             con_tree_A = str(con.predict(sent_A.split(), verbose=False)[0])
-            input_ids_A, head_idx_A = prepare_input_from_constituency_tree(con_tree_A)
+            input_ids_A, head_idx_A, head_idx_r_A, head_idx_l_A = prepare_input_from_constituency_tree(con_tree_A)
             input_ids_A = glove_tokenizer.convert_tokens_to_ids(input_ids_A)
-            # tree_ids_A, tree_ids_r_A, tree_ids_l_A = build_tree_ids_n_ary(head_idx_A)
             examples['input_ids_A'].append(input_ids_A)
             examples['head_idx_A'].append(head_idx_A)
-            # examples['input_ids_A'].append(input_ids_A)
-            # examples['tree_id_A'].append(tree_ids_A)
-            # examples['tree_ids_r_A'].append(tree_ids_r_A)
-            # examples['tree_ids_l_A'].append(tree_ids_l_A)
+            examples['head_idx_r_A'].append(head_idx_r_A)
+            examples['head_idx_l_A'].append(head_idx_l_A)
         
         for sent_B in examples['sentence_B']:
             con_tree_B = str(con.predict(sent_B.split(), verbose=False)[0])
-            input_ids_B, head_idx_B = prepare_input_from_constituency_tree(con_tree_B)
+            input_ids_B, head_idx_B, head_idx_r_B, head_idx_l_B = prepare_input_from_constituency_tree(con_tree_B)
             input_ids_B = glove_tokenizer.convert_tokens_to_ids(input_ids_B)
-            # tree_ids_B, tree_ids_r_B, tree_ids_l_B = build_tree_ids_n_ary(head_idx_B)
             examples['input_ids_B'].append(input_ids_B)
             examples['head_idx_B'].append(head_idx_B)
-            # examples['input_ids_B'].append(input_ids_B)
-            # examples['tree_id_B'].append(tree_ids_B)
-            # examples['tree_ids_r_B'].append(tree_ids_r_B)
-            # examples['tree_ids_l_B'].append(tree_ids_l_B)
-    
+            examples['head_idx_r_B'].append(head_idx_r_B)
+            examples['head_idx_l_B'].append(head_idx_l_B)
+
         for rel_score in examples['relatedness_score']:
             examples['labels'].append(map_label_to_target(rel_score, 5))
 
@@ -528,27 +455,18 @@ def main():
             # During Feature creation dataset samples might increase, we will select required samples again
             predict_dataset = predict_dataset.select(range(data_args.max_predict_samples))
 
-    # Data collator
-    # We have already padded to max length if the corresponding flag is True, otherwise we need to pad in the data
-    # collator.
-    # data_collator = (
-    #     default_data_collator
-    #     if data_args.pad_to_max_length
-    #     else DataCollatorWithPadding(tokenizer, pad_to_multiple_of=8 if training_args.fp16 else None)
-    # )
-    
     def data_collator_with_padding(features, pad_ids=0, columns=None):
         batch = {}
         first = features[0]
         if columns is None:
-            columns = ["head_idx_A", "head_idx_B", "input_ids_A", "input_ids_B"]
+            columns = ["head_idx_A", "head_idx_B", "input_ids_A", "input_ids_B", "head_idx_r_A", "head_idx_l_A", "head_idx_r_B", "head_idx_l_B"]
         feature_max_len = {k: max([len(f[k]) for f in features]) for k in first.keys() if k in columns or len(columns) == 0}
         for k, v in first.items():
             if k in columns or len(columns) == 0:
                 feature_padded = [list([int(ff) for ff in f[k]]) + [0] * (feature_max_len[k] - len(f[k])) for f in features]
                 batch[k] = feature_padded  # [f[k] for f in features]
-        tree_ids_A, tree_ids_r_A, tree_ids_l_A = build_tree_ids_n_ary(batch['head_idx_A'])
-        tree_ids_B, tree_ids_r_B, tree_ids_l_B = build_tree_ids_n_ary(batch['head_idx_B'])
+        tree_ids_A, tree_ids_r_A, tree_ids_l_A = build_tree_ids_n_ary(batch['head_idx_A'], batch['head_idx_r_A'], batch['head_idx_l_A'])
+        tree_ids_B, tree_ids_r_B, tree_ids_l_B = build_tree_ids_n_ary(batch['head_idx_B'], batch['head_idx_r_B'], batch['head_idx_l_B'])
         batch['input_ids_A'] = torch.tensor(batch['input_ids_A'])
         batch['input_ids_B'] = torch.tensor(batch['input_ids_B'])
         batch['tree_ids_A'] = torch.tensor(tree_ids_A)
@@ -562,34 +480,6 @@ def main():
 
     data_collator = data_collator_with_padding
 
-    # Post-processing:
-    # def post_processing_function(examples, features, predictions, stage="eval"):
-    #     # Post-processing: we match the start logits and end logits to answers in the original context.
-    #     predictions = postprocess_qa_predictions(
-    #         examples=examples,
-    #         features=features,
-    #         predictions=predictions,
-    #         version_2_with_negative=data_args.version_2_with_negative,
-    #         n_best_size=data_args.n_best_size,
-    #         max_answer_length=data_args.max_answer_length,
-    #         null_score_diff_threshold=data_args.null_score_diff_threshold,
-    #         output_dir=training_args.output_dir,
-    #         log_level=log_level,
-    #         prefix=stage,
-    #     )
-    #     # Format the result to the format the metric expects.
-    #     if data_args.version_2_with_negative:
-    #         formatted_predictions = [
-    #             {"id": k, "prediction_text": v, "no_answer_probability": 0.0} for k, v in predictions.items()
-    #         ]
-    #     else:
-    #         formatted_predictions = [{"id": k, "prediction_text": v} for k, v in predictions.items()]
-
-    #     references = [{"id": ex["id"], "answers": ex[answer_column_name]} for ex in examples]
-    #     return EvalPrediction(predictions=formatted_predictions, label_ids=references)
-
-    # metric = load_metric("squad_v2" if data_args.version_2_with_negative else "squad")
-
     def compute_metrics(eval_prediction):
         prediction = np.matmul(np.exp(eval_prediction.predictions), np.arange(1, 5 + 1))
         target = np.matmul(eval_prediction.label_ids, np.arange(1, 5 + 1))
@@ -600,31 +490,16 @@ def main():
         }
         return results_relatedness
     
-    # def compute_metrics(p: EvalPrediction):
-    #     return metric.compute(predictions=p.predictions, references=p.label_ids)
-
     # Initialize our Trainer
     trainer = SickTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset if training_args.do_train else None,
-        eval_dataset=predict_dataset if training_args.do_eval else None,  # eval_dataset
-        # eval_examples=eval_examples if training_args.do_eval else None,
+        eval_dataset=eval_dataset if training_args.do_eval else None,  # eval_dataset
         data_collator=data_collator,
         compute_metrics=compute_metrics,
         optimizers=("Adagrad", None),
     )
-    # trainer = QuestionAnsweringTrainer(
-    #     model=model,
-    #     args=training_args,
-    #     train_dataset=train_dataset if training_args.do_train else None,
-    #     eval_dataset=eval_dataset if training_args.do_eval else None,
-    #     eval_examples=eval_examples if training_args.do_eval else None,
-    #     tokenizer=tokenizer,
-    #     data_collator=data_collator,
-    #     post_process_function=post_processing_function,
-    #     compute_metrics=compute_metrics,
-    # )
 
     # Training
     if training_args.do_train:
@@ -660,7 +535,7 @@ def main():
     # Prediction
     if training_args.do_predict:
         logger.info("*** Predict ***")
-        results = trainer.predict(predict_dataset, predict_examples)
+        results = trainer.predict(predict_dataset)
         metrics = results.metrics
 
         max_predict_samples = (
@@ -671,7 +546,7 @@ def main():
         trainer.log_metrics("predict", metrics)
         trainer.save_metrics("predict", metrics)
 
-    kwargs = {"finetuned_from": model_args.model_name_or_path, "tasks": "question-answering"}
+    kwargs = {"finetuned_from": model_args.model_name_or_path, "tasks": "sick-relatedness"}
     if data_args.dataset_name is not None:
         kwargs["dataset_tags"] = data_args.dataset_name
         if data_args.dataset_config_name is not None:

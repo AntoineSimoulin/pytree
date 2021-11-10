@@ -8,10 +8,10 @@ from transformers import BertModel
 from pytree.data.packed_tree import PackedTree
 
 
-class ChildSumTreeEmbeddings(nn.Module):
+class TreeEmbeddings(nn.Module):
 
     def __init__(self, config):
-        super(ChildSumTreeEmbeddings, self).__init__()
+        super(TreeEmbeddings, self).__init__()
         self.use_bert = config.use_bert
         self.tune_bert = config.tune_bert
         self.normalize_bert_embeddings = config.normalize_bert_embeddings
@@ -63,7 +63,7 @@ class ChildSumTree(nn.Module):
     def __init__(self, config):
         super(ChildSumTree, self).__init__()
         self.config = config
-        self.embeddings = ChildSumTreeEmbeddings(config)
+        self.embeddings = TreeEmbeddings(config)
         if config.cell_type == 'lstm' and config.use_attention:
             self.encoder = ChildSumAttentiveTreeLSTMEncoder(config)
         elif config.cell_type == 'gru' and config.use_attention:
@@ -75,16 +75,16 @@ class ChildSumTree(nn.Module):
 
     def forward(self, inputs):
         embeds = self.embeddings(inputs['input_ids'])
-        hidden, _ = self.encoder(embeds, inputs['packed_tree'].to(embeds.device))
-        return hidden
+        hidden, h_root = self.encoder(embeds, inputs['tree_ids'].to(embeds.device))
+        return hidden, h_root
 
 
 class TreeLSTM(nn.Module):
-    def __init__(self, hidden_size, embedding_size, vocab_size):
+    def __init__(self, config):
         super(TreeLSTM, self).__init__()
-        self.hidden_size = hidden_size
-        self.embedding_size = embedding_size
-        self.vocab_size = vocab_size
+        self.hidden_size = config.hidden_size
+        self.embedding_size = config.embedding_size
+        self.vocab_size = config.vocab_size
       
     def forward(self,
                 input: Union[Tensor, PackedTree],
@@ -92,7 +92,7 @@ class TreeLSTM(nn.Module):
                 hx: Optional[Tuple[Tensor, Tensor]] = None) -> Tuple[Union[Tensor, PackedTree], Tuple[Tensor, Tensor]]:
         # if isinstance(orig_input, PackedTrees):
         batch_size = input.size(0)  # if self.batch_first else input.size(1)
-        n_steps = tree_ids.size(0)
+        n_steps = tree_ids.size(1)
         sequence_length = input.size(1)
         # else:
         #   batch_size = input.size(0) if self.batch_first else input.size(1)
@@ -114,14 +114,14 @@ class TreeLSTM(nn.Module):
 
 class ChildSumTreeLSTMCell(nn.Module):
 
-    def __init__(self, hidden_size, embedding_size):
+    def __init__(self, config):
         super(ChildSumTreeLSTMCell, self).__init__()
-        self.ioux = nn.Linear(embedding_size, 3 * hidden_size, bias=False)
-        self.iouh = nn.Linear(hidden_size, 3 * hidden_size)
-        self.fx = nn.Linear(embedding_size, hidden_size, bias=False)
-        self.fh = nn.Linear(hidden_size, hidden_size)
-        self.hidden_size = hidden_size
-        self.embedding_size = embedding_size
+        self.ioux = nn.Linear(config.embedding_size, 3 * config.hidden_size, bias=False)
+        self.iouh = nn.Linear(config.hidden_size, 3 * config.hidden_size)
+        self.fx = nn.Linear(config.embedding_size, config.hidden_size, bias=False)
+        self.fh = nn.Linear(config.hidden_size, config.hidden_size)
+        self.hidden_size = config.hidden_size
+        self.embedding_size = config.embedding_size
 
     def forward(self, x, hx, tree_ids_d):
 
