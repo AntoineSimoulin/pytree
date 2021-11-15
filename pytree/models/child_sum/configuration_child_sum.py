@@ -5,7 +5,7 @@ class ChildSumConfig:
     def __init__(
         self,
         embedding_size=300,
-        hidden_size=100,
+        hidden_size=150,
         vocab_size=10000,
         hidden_dropout_prob=0.,
         cell_type='lstm',

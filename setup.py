@@ -12,6 +12,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/AntoineSimoulin/pytree/tree/main",
+    download_url="https://github.com/AntoineSimoulin/pytree/archive/refs/tags/v0.0.1-alpha.tar.gz",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",

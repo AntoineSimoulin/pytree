@@ -85,6 +85,14 @@ class TreeLSTM(nn.Module):
         self.hidden_size = config.hidden_size
         self.embedding_size = config.embedding_size
         self.vocab_size = config.vocab_size
+
+    def xavier_init_weights(self):
+        # nn.init.xavier_uniform_(self.embeddings.weight.data, gain=1.0)
+        for name, param in self.named_parameters():
+            if 'weight' in name:
+                nn.init.xavier_uniform_(param.data, gain=1.0)
+            if 'bias' in name:
+                param.data.fill_(0)
       
     def forward(self,
                 input: Union[Tensor, PackedTree],
@@ -306,6 +314,8 @@ class ChildSumTreeLSTMEncoder(TreeLSTM):
         """
         super(ChildSumTreeLSTMEncoder, self).__init__(config)
         self.tree_lstm_cell = ChildSumTreeLSTMCell(config)
+        if config.xavier_init:
+            self.xavier_init_weights()
 
 
 # class ChildSumTreeAttentiveLSTMCell(ChildSumTreeLSTMCell):
